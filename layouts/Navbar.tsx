@@ -7,7 +7,7 @@ import { useParams } from 'next/navigation'
 function Navbar() {
     const [menuOpen, setMenuOpen] = useState(false);
     const [activePage, setActivePage] = useState("dashboard");
-    const id = useParams().id;
+    const id = useParams().id
   return (
     <header className="border-b border-[#1B2029]">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-4">

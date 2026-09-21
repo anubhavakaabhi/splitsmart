@@ -1,5 +1,8 @@
 import { Inter, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { redirect } from "next/navigation";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const mono = JetBrains_Mono({
@@ -8,7 +11,11 @@ const mono = JetBrains_Mono({
   variable: "--font-mono",
 });
 
-export default function Home() {
+export default async function Home() {
+  const session = await getServerSession(authOptions)
+  if(session){
+    redirect("/dashboard")
+  }
   return (
     <main
       className={`${inter.variable} ${mono.variable} font-sans min-h-screen bg-[#0B0E14] text-[#EDEFF3] flex items-center justify-center px-6`}

@@ -3,6 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { signIn } from "next-auth/react"
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { redirect } from "next/navigation";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const mono = JetBrains_Mono({
@@ -12,6 +16,7 @@ const mono = JetBrains_Mono({
 });
 
 function GoogleIcon() {
+  
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
       <path
@@ -34,10 +39,9 @@ function GoogleIcon() {
   );
 }
 
-export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
 
+
+export default function Login() {
   return (
     <main
       className={`${inter.variable} ${mono.variable} font-sans min-h-screen bg-[#0B0E14] text-[#EDEFF3] flex items-center justify-center px-6`}
@@ -75,13 +79,6 @@ export default function Login() {
               SplitSmart
             </span>
           </Link>
-
-          <Link
-            href="/signup"
-            className="font-mono text-[13px] text-[#8B93A7] transition-colors duration-200 hover:text-[#EDEFF3]"
-          >
-            Sign up
-          </Link>
         </div>
 
         {/* form */}
@@ -103,84 +100,12 @@ export default function Login() {
             type="button"
             className="reveal-anim mt-8 flex w-full items-center justify-center gap-3 rounded-[6px] border border-[#232937] bg-[#12161F] py-2.5 text-[14px] font-medium text-[#EDEFF3] transition-colors duration-200 hover:border-[#565F73]"
             style={{ animationDelay: "280ms" }}
+            onClick={() => signIn("google", { callbackUrl: '/dashboard' })}
           >
             <GoogleIcon />
             Continue with Google
           </button>
-
-          <div
-            className="reveal-anim my-6 flex items-center gap-3"
-            style={{ animationDelay: "340ms" }}
-          >
-            <div className="h-px flex-1 bg-[#232937]" />
-            <span className="font-mono text-[11px] text-[#565F73]">or</span>
-            <div className="h-px flex-1 bg-[#232937]" />
-          </div>
-
-          <form
-            className="flex flex-col gap-4"
-            onSubmit={(e) => e.preventDefault()}
-          >
-            <div
-              className="reveal-anim flex flex-col gap-1.5"
-              style={{ animationDelay: "400ms" }}
-            >
-              <label htmlFor="email" className="font-mono text-[12px] text-[#8B93A7]">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="rounded-[6px] border border-[#232937] bg-[#12161F] px-3 py-2.5 text-[14px] text-[#EDEFF3] outline-none placeholder:text-[#565F73] focus:border-[#34D399]"
-              />
-            </div>
-
-            <div
-              className="reveal-anim flex flex-col gap-1.5"
-              style={{ animationDelay: "460ms" }}
-            >
-              <div className="flex items-center justify-between">
-                <label htmlFor="password" className="font-mono text-[12px] text-[#8B93A7]">
-                  Password
-                </label>
-                <Link
-                  href="/forgot-password"
-                  className="text-[12px] text-[#565F73] transition-colors duration-200 hover:text-[#EDEFF3]"
-                >
-                  Forgot?
-                </Link>
-              </div>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="rounded-[6px] border border-[#232937] bg-[#12161F] px-3 py-2.5 text-[14px] text-[#EDEFF3] outline-none placeholder:text-[#565F73] focus:border-[#34D399]"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="reveal-anim mt-2 rounded-[6px] bg-[#34D399] py-2.5 font-mono text-[14px] font-medium text-[#0B0E14] transition-opacity duration-200 hover:opacity-90"
-              style={{ animationDelay: "520ms" }}
-            >
-              Log in
-            </button>
-          </form>
-
-          <p
-            className="reveal-anim mt-6 text-center text-[13px] text-[#8B93A7]"
-            style={{ animationDelay: "580ms" }}
-          >
-            Don't have an account?{" "}
-            <Link href="/signup" className="text-[#EDEFF3] hover:text-[#34D399]">
-              Sign up
-            </Link>
-          </p>
+         
         </div>
 
         {/* bottom rule */}
