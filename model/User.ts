@@ -2,13 +2,15 @@ import mongoose from "mongoose";
 
 export interface IUser extends mongoose.Document {
   email: string;
-  password?: string;
+  username?: string;
   avatar?: string;
 }
 
 export const UserSchema = new mongoose.Schema<IUser>({
-  email: { type: String, required: true, unique: true },
-  password: { type: String },
+  username: {type: String,
+    unique: [true , "Username already exists"]
+  },
+  email: { type: String, required: true, unique: [true , "Email already exists"] },
   avatar: { type: String },
 });
 

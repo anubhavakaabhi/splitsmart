@@ -175,7 +175,7 @@ function CreateGroupModal({
     };
 
     try {
-      const res = await fetch("/api/groups/add", {
+      const res = await fetch("/api/group/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -389,6 +389,7 @@ function CreateGroupModal({
             <button
               type="submit"
               disabled={!canSubmit}
+              onClick= {handleSubmit}
               className="rounded-[6px] bg-[#34D399] px-4 py-2 font-mono text-[13px] font-medium text-[#0B0E14] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {submitting ? "Creating…" : "Add group"}

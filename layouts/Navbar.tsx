@@ -3,8 +3,10 @@ import React from 'react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { useParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 
 function Navbar() {
+    const {data:session} = useSession()
     const [menuOpen, setMenuOpen] = useState(false);
     const [activePage, setActivePage] = useState("dashboard");
     const id = useParams().id
@@ -47,18 +49,18 @@ function Navbar() {
                 onClick={() => setMenuOpen((v) => !v)}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-[#232937] font-mono text-[13px] text-[#EDEFF3]"
               >
-                A
-              </button>
+                <img src={session?.user?.image as string} alt="" />              
+                </button>
 
               {menuOpen && (
                 <div className="absolute right-0 top-10 w-36 rounded-[6px] border border-[#232937] bg-[#12161F] py-1 font-mono text-[13px] shadow-lg">
-                  <Link href="/account" className="block px-3 py-2 text-[#8B93A7] hover:text-[#EDEFF3]">
+                  <Link href="/profile" className="block px-3 py-2 text-[#8B93A7] hover:text-[#EDEFF3]">
                     Profile
                   </Link>
-                  <Link href="/account/settings" className="block px-3 py-2 text-[#8B93A7] hover:text-[#EDEFF3]">
+                  <Link href="/settings" className="block px-3 py-2 text-[#8B93A7] hover:text-[#EDEFF3]">
                     Settings
                   </Link>
-                  <Link href="/logout" className="block px-3 py-2 text-[#F2726F] hover:text-[#EDEFF3]">
+                  <Link href="/api/auth/signout" className="block px-3 py-2 text-[#F2726F] hover:text-[#EDEFF3]">
                     Log out
                   </Link>
                 </div>
