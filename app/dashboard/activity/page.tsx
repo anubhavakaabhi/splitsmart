@@ -395,7 +395,7 @@ export default function ActivityPage() {
                             e.type === "payment" ? "text-[#34D399]" : "text-[#EDEFF3]"
                           }`}
                         >
-                          ${fmt(e.amount)}
+                          ₹{fmt(e.amount)}
                         </p>
                       )}
                     </Link>

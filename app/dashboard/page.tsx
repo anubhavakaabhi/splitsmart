@@ -225,11 +225,11 @@ export default function Dashboard() {
                   yourPending > 0 ? "text-[#F5B95B]" : "text-[#565F73]"
                 }`}
               >
-                ${fmt(yourPending)}
+                ₹{fmt(yourPending)}
               </p>
             )}
             <Link
-              href="/dashboard/expenses"
+              href="/expenses"
               className="mt-2 inline-block text-[13px] text-[#565F73] transition-colors hover:text-[#EDEFF3]"
             >
               View details →
@@ -241,7 +241,7 @@ export default function Dashboard() {
             {loading ? (
               <div className="skeleton mt-3 h-8 w-28 rounded-[4px]" />
             ) : (
-              <p className="mt-2 font-mono text-[28px] text-[#EDEFF3]">${fmt(totalSpent)}</p>
+              <p className="mt-2 font-mono text-[28px] text-[#EDEFF3]">₹{fmt(totalSpent)}</p>
             )}
             <Link
               href="/dashboard/groups"
@@ -261,7 +261,7 @@ export default function Dashboard() {
                 + New group
               </Link>
               <Link
-                href="/dashboard/expenses"
+                href="/expenses"
                 className="rounded-[6px] border border-[#232937] px-3 py-1.5 font-mono text-[13px] text-[#EDEFF3] transition-colors hover:border-[#34D399]"
               >
                 All expenses
@@ -371,7 +371,7 @@ export default function Dashboard() {
                               }`}
                             />
                             <span className={pending ? "text-[#EDEFF3]" : "text-[#565F73]"}>
-                              {pending ? `$${fmt(g.yourShare.amount)} to settle` : "Settled"}
+                              {pending ? `₹${fmt(g.yourShare.amount)} to settle` : "Settled"}
                             </span>
                           </>
                         ) : (
@@ -394,7 +394,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <h2 className="font-mono text-[13px] text-[#8B93A7]">Recent expenses</h2>
                   <Link
-                    href="/dashboard/expenses"
+                    href="/expenses"
                     className="font-mono text-[12px] text-[#565F73] transition-colors hover:text-[#EDEFF3]"
                   >
                     View all →
@@ -427,7 +427,7 @@ export default function Dashboard() {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-mono text-[13px]">${fmt(g.total)}</p>
+                          <p className="font-mono text-[13px]">₹{fmt(g.total)}</p>
                           <p
                             className={`font-mono text-[10px] ${
                               g.settled ? "text-[#34D399]" : "text-[#F5B95B]"
@@ -474,7 +474,7 @@ export default function Dashboard() {
                               {s.groupName}
                             </p>
                           </div>
-                          <p className="font-mono text-[13px] text-[#F5B95B]">${fmt(s.amount)}</p>
+                          <p className="font-mono text-[13px] text-[#F5B95B]">₹{fmt(s.amount)}</p>
                         </Link>
                       ))}
                     </div>
@@ -534,7 +534,7 @@ export default function Dashboard() {
                   />
                 </div>
                 <p className="mt-2 font-mono text-[11px] text-[#565F73]">
-                  ${fmt(settledAmount)} of ${fmt(splitTotal)} · {Math.round(settledPct)}%
+                  ₹{fmt(settledAmount)} of ₹{fmt(splitTotal)} · {Math.round(settledPct)}%
                 </p>
               </div>
             </div>

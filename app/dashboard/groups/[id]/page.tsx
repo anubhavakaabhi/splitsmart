@@ -263,11 +263,11 @@ export default function GroupDetail() {
             >
               <div className="rounded-[8px] border border-[#232937] bg-[#12161F] p-4">
                 <p className="font-mono text-[11px] text-[#8B93A7]">Total</p>
-                <p className="mt-1.5 font-mono text-[18px] text-[#EDEFF3]">${fmt(group.total)}</p>
+                <p className="mt-1.5 font-mono text-[18px] text-[#EDEFF3]">₹{fmt(group.total)}</p>
               </div>
               <div className="rounded-[8px] border border-[#232937] bg-[#12161F] p-4">
                 <p className="font-mono text-[11px] text-[#8B93A7]">Settled</p>
-                <p className="mt-1.5 font-mono text-[18px] text-[#34D399]">${fmt(paidAmount)}</p>
+                <p className="mt-1.5 font-mono text-[18px] text-[#34D399]">₹{fmt(paidAmount)}</p>
               </div>
               <div className="rounded-[8px] border border-[#232937] bg-[#12161F] p-4">
                 <p className="font-mono text-[11px] text-[#8B93A7]">Outstanding</p>
@@ -276,7 +276,7 @@ export default function GroupDetail() {
                     outstanding === 0 ? "text-[#565F73]" : "text-[#F5B95B]"
                   }`}
                 >
-                  ${fmt(outstanding)}
+                  ₹{fmt(outstanding)}
                 </p>
               </div>
             </div>
@@ -352,7 +352,7 @@ export default function GroupDetail() {
                             s.isPaid ? "text-[#565F73] line-through decoration-[#565F73]/60" : "text-[#EDEFF3]"
                           }`}
                         >
-                          ${fmt(s.amount)}
+                          ₹{fmt(s.amount)}
                         </p>
 
                         <div className="flex w-[132px] justify-end">

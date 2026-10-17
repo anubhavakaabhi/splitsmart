@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Inter, JetBrains_Mono } from "next/font/google";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -27,6 +28,13 @@ type ApiGroup = {
   admin?: string;
 };
 
+// Where the signed-in user stands in a group:
+//  empty    → the group has no expense / splits yet
+//  outside  → there are splits, but none of them is you
+//  owe      → your share is still unpaid
+//  settled  → your share is paid
+type MyStatus = "empty" | "outside" | "owe" | "settled";
+
 // Shape the UI actually renders
 type Group = {
   id: string;
@@ -35,14 +43,15 @@ type Group = {
   members: string[];
   createdAt: Date | null;
   totalSpend: number;
-  balance: number; // + you're owed, - you owe, 0 settled
+  status: MyStatus;
+  myShare: number;
   expenseTitle?: string;
   splitType?: "equally" | "custom";
 };
 
 // ---- helpers -------------------------------------------------------------
 
-const tabs = ["All", "You owe", "You're owed", "Settled"] as const;
+const tabs = ["All", "You owe", "Settled"] as const;
 const accentPalette = ["#5B8DEF", "#F5B95B", "#B084F0", "#34D399", "#F2726F"];
 
 function fmt(n: number) {
@@ -75,25 +84,35 @@ function dateFromObjectId(id: string) {
   return new Date(parseInt(id.slice(0, 8), 16) * 1000);
 }
 
-// ASSUMPTION: `isPaid: true` marks the person who paid the bill up front.
-//  - you paid  → everyone else's shares are owed to you  (positive)
-//  - they paid → your share is what you owe them          (negative)
-// If you store settlement differently, this is the only function to change.
-function computeBalance(splits: ApiSplit[] = []) {
-  const you = splits.find((s) => s.person === "You");
-  const payer = splits.find((s) => s.isPaid);
-  if (!you || !payer) return 0;
-
-  if (payer.person === "You") {
-    return splits
-      .filter((s) => s.person !== "You")
-      .reduce((sum, s) => sum + (s.amount || 0), 0);
-  }
-  return -(you.amount || 0);
+// You can appear in a split as "You" (what the create-group form writes) or
+// under your own username — treat both as you, ignoring case.
+function makeIsMe(username?: string | null) {
+  const u = username?.trim().toLowerCase();
+  return (person: string) => {
+    const p = person.trim().toLowerCase();
+    return p === "you" || (!!u && p === u);
+  };
 }
 
-function toGroup(raw: ApiGroup): Group {
+// `isPaid: true` = that person's share is settled.
+function toGroup(raw: ApiGroup, isMe: (person: string) => boolean): Group {
   const id = typeof raw._id === "string" ? raw._id : raw._id?.$oid ?? "";
+  const splits = raw.splits ?? [];
+
+  const mine = splits.filter((s) => isMe(s.person));
+  const unpaid = mine.filter((s) => !s.isPaid);
+
+  let status: MyStatus;
+  if (splits.length === 0) status = "empty";
+  else if (mine.length === 0) status = "outside";
+  else if (unpaid.length > 0) status = "owe";
+  else status = "settled";
+
+  const myShare = (status === "owe" ? unpaid : mine).reduce(
+    (sum, s) => sum + (s.amount || 0),
+    0
+  );
+
   return {
     id,
     name: raw.name,
@@ -101,20 +120,37 @@ function toGroup(raw: ApiGroup): Group {
     members: raw.members ?? [],
     createdAt: dateFromObjectId(id),
     totalSpend: raw.expenses ?? 0,
-    balance: computeBalance(raw.splits),
+    status,
+    myShare,
     expenseTitle: raw.expenseTitle,
     splitType: raw.splitType,
   };
+}
+
+// what the bottom-right corner of a card says about you
+function statusView(g: Group) {
+  switch (g.status) {
+    case "owe":
+      return { label: "You owe", value: `₹${fmt(g.myShare)}`, color: "text-[#F2726F]" };
+    case "settled":
+      return { label: "Your share · paid", value: `₹${fmt(g.myShare)}`, color: "text-[#565F73]" };
+    case "outside":
+      return { label: "Not in split", value: "—", color: "text-[#565F73]" };
+    default:
+      return { label: "No expenses yet", value: "—", color: "text-[#565F73]" };
+  }
 }
 
 // ---- create group + expense modal ----------------------------------------
 
 function CreateGroupModal({
   open,
+  myUsername,
   onClose,
   onCreated,
 }: {
   open: boolean;
+  myUsername?: string | null;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -142,8 +178,12 @@ function CreateGroupModal({
 
   if (!open) return null;
 
+  const isMe = makeIsMe(myUsername);
   const cleanMembers = members.map((m) => m.trim()).filter(Boolean);
-  const splitPeople = ["You", ...cleanMembers];
+  // "You" already stands for the signed-in user, so if they also typed their own
+  // username as a member, don't give them a second row in the split.
+  const otherMembers = cleanMembers.filter((m) => !isMe(m));
+  const splitPeople = ["You", ...otherMembers];
   const canSubmit = groupName.trim().length > 0 && !submitting;
 
   const amountValue = parseFloat(expenseAmount) || 0;
@@ -373,7 +413,7 @@ function CreateGroupModal({
                 className="rounded-[6px] border border-[#232937] bg-[#0B0E14] px-3 py-2.5 text-[13px] text-[#EDEFF3] outline-none focus:border-[#34D399]"
               >
                 <option value="You">Paid by You</option>
-                {cleanMembers.map((m, i) => (
+                {otherMembers.map((m, i) => (
                   <option key={i} value={m}>
                     Paid by {m}
                   </option>
@@ -458,7 +498,7 @@ function CreateGroupModal({
                         customRemaining === 0 ? "text-[#34D399]" : "text-[#F2726F]"
                       }`}
                     >
-                      ${fmt(customRemaining)}
+                      ₹{fmt(customRemaining)}
                     </span>
                   )}
                 </div>
@@ -497,7 +537,10 @@ function CreateGroupModal({
 // ---- page ---------------------------------------------------------------
 
 export default function Groups() {
-  const [groupList, setGroupList] = useState<Group[]>([]);
+  const { data: session } = useSession();
+  const username = (session?.user as { username?: string | null } | undefined)?.username;
+
+  const [rawGroups, setRawGroups] = useState<ApiGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [tab, setTab] = useState<(typeof tabs)[number]>("All");
@@ -512,13 +555,7 @@ export default function Groups() {
 
       const data = await res.json();
       // accept either a bare array or { groups: [...] }
-      const raw: ApiGroup[] = Array.isArray(data) ? data : data?.groups ?? [];
-
-      const mapped = raw.map(toGroup);
-      mapped.sort(
-        (a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)
-      );
-      setGroupList(mapped);
+      setRawGroups(Array.isArray(data) ? data : data?.groups ?? []);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -530,15 +567,24 @@ export default function Groups() {
     fetchGroups();
   }, [fetchGroups]);
 
+  // Derived from the raw documents + who's signed in, so statuses fix themselves
+  // as soon as the session (and your username) finishes loading.
+  const groupList = useMemo(() => {
+    const isMe = makeIsMe(username);
+    return rawGroups
+      .map((g) => toGroup(g, isMe))
+      .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0));
+  }, [rawGroups, username]);
+
   const filtered = groupList.filter((g) => {
     if (!g.name.toLowerCase().includes(query.toLowerCase())) return false;
-    if (tab === "You owe") return g.balance < 0;
-    if (tab === "You're owed") return g.balance > 0;
-    if (tab === "Settled") return g.balance === 0;
+    if (tab === "You owe") return g.status === "owe";
+    if (tab === "Settled") return g.status === "settled";
     return true;
   });
 
   const showCards = !loading && !loadError && groupList.length > 0;
+  const openCount = groupList.filter((g) => g.status === "owe").length;
 
   return (
     <main
@@ -576,9 +622,7 @@ export default function Groups() {
             <p className="mt-1 text-[13px] text-[#8B93A7]">
               {loading
                 ? "Loading your groups…"
-                : `${groupList.length} ${groupList.length === 1 ? "group" : "groups"} · ${
-                    groupList.filter((g) => g.balance !== 0).length
-                  } with open balances`}
+                : `${groupList.length} ${groupList.length === 1 ? "group" : "groups"} · ${openCount} with open balances`}
             </p>
           </div>
 
@@ -685,108 +729,103 @@ export default function Groups() {
         {/* cards */}
         {showCards && (
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((g, i) => (
-              <Link
-                key={g.id}
-                href={`/dashboard/groups/${g.id}`}
-                className="reveal-anim group relative overflow-hidden rounded-[10px] border border-[#232937] bg-[#12161F] p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#33394A] hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,0.6)]"
-                style={{ animationDelay: `${160 + Math.min(i, 8) * 60}ms` }}
-              >
-                {/* accent edge */}
-                <span
-                  className="absolute inset-y-0 left-0 w-[3px]"
-                  style={{ backgroundColor: g.accent }}
-                />
-
-                <div className="flex items-start justify-between">
-                  <p className="max-w-[70%] text-[15px] font-medium leading-snug text-[#EDEFF3]">
-                    {g.name}
-                  </p>
+            {filtered.map((g, i) => {
+              const view = statusView(g);
+              return (
+                <Link
+                  key={g.id}
+                  href={`/dashboard/groups/${g.id}`}
+                  className="reveal-anim group relative overflow-hidden rounded-[10px] border border-[#232937] bg-[#12161F] p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#33394A] hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,0.6)]"
+                  style={{ animationDelay: `${160 + Math.min(i, 8) * 60}ms` }}
+                >
+                  {/* accent edge */}
                   <span
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] font-mono text-[12px] font-medium text-[#0B0E14]"
+                    className="absolute inset-y-0 left-0 w-[3px]"
                     style={{ backgroundColor: g.accent }}
-                  >
-                    {initials(g.name)}
-                  </span>
-                </div>
+                  />
 
-                {/* member stack */}
-                <div className="mt-4 flex items-center">
-                  {g.members.slice(0, 4).map((m, idx) => (
+                  <div className="flex items-start justify-between">
+                    <p className="max-w-[70%] text-[15px] font-medium leading-snug text-[#EDEFF3]">
+                      {g.name}
+                    </p>
                     <span
-                      key={idx}
-                      title={m}
-                      className="-ml-2 flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#12161F] bg-[#232937] font-mono text-[10px] text-[#EDEFF3] first:ml-0"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] font-mono text-[12px] font-medium text-[#0B0E14]"
+                      style={{ backgroundColor: g.accent }}
                     >
-                      {initials(m)}
+                      {initials(g.name)}
                     </span>
-                  ))}
-                  {g.members.length > 4 && (
-                    <span className="-ml-2 flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#12161F] bg-[#0B0E14] font-mono text-[10px] text-[#565F73]">
-                      +{g.members.length - 4}
-                    </span>
-                  )}
-                  <span className="ml-2 text-[12px] text-[#565F73]">
-                    {g.members.length} {g.members.length === 1 ? "member" : "members"}
-                  </span>
-                </div>
+                  </div>
 
-                {/* latest expense */}
-                {g.expenseTitle && (
-                  <div className="mt-4 flex items-center justify-between gap-3 rounded-[6px] bg-[#0B0E14] px-3 py-2">
-                    <span className="truncate text-[13px] text-[#EDEFF3]">
-                      {g.expenseTitle}
-                    </span>
-                    {g.splitType && (
-                      <span className="shrink-0 font-mono text-[10px] text-[#565F73]">
-                        {g.splitType === "equally" ? "equal split" : "custom split"}
+                  {/* member stack */}
+                  <div className="mt-4 flex items-center">
+                    {g.members.slice(0, 4).map((m, idx) => (
+                      <span
+                        key={idx}
+                        title={m}
+                        className="-ml-2 flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#12161F] bg-[#232937] font-mono text-[10px] text-[#EDEFF3] first:ml-0"
+                      >
+                        {initials(m)}
+                      </span>
+                    ))}
+                    {g.members.length > 4 && (
+                      <span className="-ml-2 flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#12161F] bg-[#0B0E14] font-mono text-[10px] text-[#565F73]">
+                        +{g.members.length - 4}
                       </span>
                     )}
-                  </div>
-                )}
-
-                {/* divider */}
-                <div className="my-4 h-px bg-[#1B2029]" />
-
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="font-mono text-[10px] uppercase tracking-wide text-[#565F73]">
-                      Total spend
-                    </p>
-                    <p className="mt-0.5 font-mono text-[14px] text-[#8B93A7]">
-                      ${fmt(g.totalSpend)}
-                    </p>
+                    <span className="ml-2 text-[12px] text-[#565F73]">
+                      {g.members.length} {g.members.length === 1 ? "member" : "members"}
+                    </span>
                   </div>
 
-                  <div className="text-right">
-                    <p className="font-mono text-[10px] uppercase tracking-wide text-[#565F73]">
-                      {g.balance === 0 ? "Settled" : g.balance > 0 ? "You're owed" : "You owe"}
-                    </p>
-                    <p
-                      className={`mt-0.5 font-mono text-[16px] ${
-                        g.balance === 0
-                          ? "text-[#565F73]"
-                          : g.balance > 0
-                          ? "text-[#34D399]"
-                          : "text-[#F2726F]"
-                      }`}
-                    >
-                      {g.balance === 0 ? "$0.00" : `$${fmt(g.balance)}`}
-                    </p>
-                  </div>
-                </div>
+                  {/* latest expense */}
+                  {g.expenseTitle && (
+                    <div className="mt-4 flex items-center justify-between gap-3 rounded-[6px] bg-[#0B0E14] px-3 py-2">
+                      <span className="truncate text-[13px] text-[#EDEFF3]">
+                        {g.expenseTitle}
+                      </span>
+                      {g.splitType && (
+                        <span className="shrink-0 font-mono text-[10px] text-[#565F73]">
+                          {g.splitType === "equally" ? "equal split" : "custom split"}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
-                {g.createdAt && (
-                  <p className="mt-3 font-mono text-[11px] text-[#565F73]">
-                    Created{" "}
-                    {g.createdAt.toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </p>
-                )}
-              </Link>
-            ))}
+                  {/* divider */}
+                  <div className="my-4 h-px bg-[#1B2029]" />
+
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="font-mono text-[10px] uppercase tracking-wide text-[#565F73]">
+                        Total spend
+                      </p>
+                      <p className="mt-0.5 font-mono text-[14px] text-[#8B93A7]">
+                        ₹{fmt(g.totalSpend)}
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="font-mono text-[10px] uppercase tracking-wide text-[#565F73]">
+                        {view.label}
+                      </p>
+                      <p className={`mt-0.5 font-mono text-[16px] ${view.color}`}>
+                        {view.value}
+                      </p>
+                    </div>
+                  </div>
+
+                  {g.createdAt && (
+                    <p className="mt-3 font-mono text-[11px] text-[#565F73]">
+                      Created{" "}
+                      {g.createdAt.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </p>
+                  )}
+                </Link>
+              );
+            })}
           </div>
         )}
 
@@ -800,6 +839,7 @@ export default function Groups() {
 
       <CreateGroupModal
         open={modalOpen}
+        myUsername={username}
         onClose={() => setModalOpen(false)}
         onCreated={fetchGroups}
       />

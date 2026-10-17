@@ -212,7 +212,7 @@ export default function Expenses() {
             {loading ? (
               <div className="skeleton mt-2 h-6 w-24 rounded-[4px]" />
             ) : (
-              <p className="mt-1.5 font-mono text-[20px] text-[#EDEFF3]">${fmt(totalSpent)}</p>
+              <p className="mt-1.5 font-mono text-[20px] text-[#EDEFF3]">₹{fmt(totalSpent)}</p>
             )}
           </div>
           <div className="rounded-[8px] border border-[#232937] bg-[#12161F] p-4">
@@ -225,7 +225,7 @@ export default function Expenses() {
                   yourPending > 0 ? "text-[#F5B95B]" : "text-[#565F73]"
                 }`}
               >
-                ${fmt(yourPending)}
+                ₹{fmt(yourPending)}
               </p>
             )}
           </div>
@@ -368,7 +368,7 @@ export default function Expenses() {
                               }`}
                             />
                             <span className={yourPendingRow ? "text-[#EDEFF3]" : "text-[#565F73]"}>
-                              ${fmt(e.yourShare.amount)}
+                              ₹{fmt(e.yourShare.amount)}
                             </span>
                           </p>
                         ) : (
@@ -378,7 +378,7 @@ export default function Expenses() {
 
                       {/* total + progress */}
                       <div className="text-right">
-                        <p className="font-mono text-[15px]">${fmt(e.total)}</p>
+                        <p className="font-mono text-[15px]">₹{fmt(e.total)}</p>
                         <p
                           className={`mt-0.5 font-mono text-[11px] ${
                             e.settled ? "text-[#34D399]" : "text-[#F5B95B]"
