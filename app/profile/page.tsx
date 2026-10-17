@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState , useEffect} from "react";
 import { useSession, signOut } from "next-auth/react";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import Navbar from "@/layouts/Navbar";
@@ -27,12 +27,14 @@ export default function Account() {
   const { data: session, status } = useSession();
   const [username, setUsername] = useState<string | null>(null);
 
-  async function getUsername() {
-    const response = await fetch("/api/getusername");
-    const data = await response.json();
-    setUsername(data.username);
-  }
-  getUsername();
+  useEffect(() => {
+    async function getUsername() {
+      const response = await fetch("/api/getusername");
+      const data = await response.json();
+      setUsername(data.username);
+    }
+    getUsername();
+  }, []);
 
   const user = session?.user as
     | { name?: string | null; email?: string | null; username?: string | null; image?: string | null }

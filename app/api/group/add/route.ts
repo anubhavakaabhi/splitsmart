@@ -15,23 +15,36 @@ export async function POST(req: NextRequest) {
   try {
     const { name, members, expense } = await req.json();
 
+    const expenseAmount = expense.amount;
+    const splitType = expense.splitType || "equally";
+    
+    let splits = expense.splits || [];
+    if (splitType === "equally") {
+      const amountPerPerson = Math.ceil(expenseAmount / members.length);
+      splits = members.map((member: string) => ({
+        person: member,
+        amount: amountPerPerson,
+        isPaid: false,
+        
+      }));
+    }
+    
+
     const group = new Group({
       name,
       members,
-      expense: expense.amount,
+      expenses: expenseAmount,
+      expenseTitle: expense.title,
+      splitType: expense.splitType,
+      splits: splits,
       admin: session.user?.email, 
     });
 
     await group.save();
 
-    // Add Expense if provided
-    if (expense) {
-      // Create Expense logic here
-      // link it to the group
-    }
-
     return NextResponse.json({ success: true, group });
   } catch (error) {
+    console.log(error)
     return NextResponse.json({ success: false, error: "Failed to create group" }, { status: 500 });
   }
 }

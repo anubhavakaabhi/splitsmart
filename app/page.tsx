@@ -13,7 +13,6 @@ const mono = JetBrains_Mono({
 
 export default async function Home() {
   const session = await getServerSession(authOptions)
-  console.log(session)
   if(session){
     redirect("/dashboard")
   }
