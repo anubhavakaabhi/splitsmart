@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { v4 as uuidv4 } from 'uuid';
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const mono = JetBrains_Mono({
@@ -509,7 +510,7 @@ export default function Dashboard() {
                     <div className="flex min-w-0 flex-col gap-1.5">
                       {slices.map((s) => (
                         <div
-                          key={s.label}
+                          key={uuidv4()}
                           className="flex items-center gap-2 text-[12px] text-[#8B93A7]"
                         >
                           <span
